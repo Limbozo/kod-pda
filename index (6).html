@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>[KOD OS v1.0]</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --amb: #e0a830;
+            --amb-dim: #6b4f18;
+            --amb-dark: #2e2210;
+            --bg-base: #080807;
+            --bg-panel: #0e0e0b;
+            --red: #d44030;
+            --green: #5a8f4a;
+            --olive: #3b3c26;
+            --text-mut: #8b7d5c;
+            --border-style: 1px solid var(--amb-dim);
+            --glow: 0 0 8px rgba(224,168,48,0.25);
+            --glow-strong: 0 0 18px rgba(224,168,48,0.5);
+            --glow-red: 0 0 10px rgba(212,64,48,0.4);
+            --glow-green: 0 0 10px rgba(90,143,74,0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: var(--bg-base);
+            color: var(--amb);
+            height: 100vh;
+            overflow: hidden;
+            text-transform: uppercase;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* CRT scanlines */
+        body::before {
+            content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9997;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px);
+            opacity: 1;
+        }
+        /* Vignette */
+        body::after {
+            content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+            box-shadow: inset 0 0 180px rgba(0,0,0,0.95), inset 0 0 60px rgba(0,0,0,0.6);
+        }
+        
+        .scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 30px;
+            background: linear-gradient(to bottom, transparent, rgba(224,168,48,0.07), transparent);
+            opacity: 0.6; pointer-events: none; z-index: 9999;
+            animation: scanline 8s linear infinite;
+        }
+        @keyframes scanline { 0% { transform: translateY(-30px); } 100% { transform: translateY(100vh); } }
+
+        /* Flicker animation */
+        @keyframes flicker {
+            0%, 95%, 100% { opacity: 1; }
+            96% { opacity: 0.94; }
+            97% { opacity: 1; }
+            98% { opacity: 0.96; }
+        }
+        body { animation: flicker 12s infinite; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+        @keyframes pulseGlow { 0%,100% { box-shadow: var(--glow); } 50% { box-shadow: var(--glow-strong); } }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: var(--amb-dim); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--amb); }
+
+        .mini-scroll::-webkit-scrollbar { width: 3px; }
+        .mini-scroll::-webkit-scrollbar-track { background: transparent; }
+        .mini-scroll::-webkit-scrollbar-thumb { background: var(--amb-dark); border-radius: 2px; }
+
+        .color-red { color: var(--red); } .color-green { color: var(--green); }
+        .color-mut { color: var(--text-mut); } .color-amb { color: var(--amb); }
+
+        button, input, select, textarea {
+            font-family: inherit; text-transform: inherit;
+            background: rgba(0,0,0,0.7); border: var(--border-style); color: var(--amb);
+            padding: 8px 12px; outline: none; border-radius: 3px; 
+            transition: all 0.15s ease;
+        }
+        
+        button { 
+            cursor: pointer; font-weight: bold; letter-spacing: 1.5px;
+            position: relative; overflow: hidden;
+        }
+        button::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        button:hover { 
+            background: var(--amb); color: #000; 
+            box-shadow: var(--glow-strong);
+            text-shadow: none;
+        }
+        button:active { background: var(--text-mut); transform: scale(0.98); }
+        button:disabled { opacity: 0.25; pointer-events: none; }
+        
+        input:focus, textarea:focus, select:focus { 
+            background: var(--amb-dark); border-color: var(--amb);
+            box-shadow: var(--glow);
+        }
+        input::placeholder, textarea::placeholder { color: var(--amb-dim); }
+
+        .btn-red { border-color: var(--red); color: var(--red); }
+        .btn-red:hover { background: var(--red); color: #000; box-shadow: var(--glow-red); }
+        .btn-green { border-color: var(--green); color: var(--green); }
+        .btn-green:hover { background: var(--green); color: #000; box-shadow: var(--glow-green); }
+        .btn-small { padding: 4px 8px; font-size: 11px; letter-spacing: 0.5px; }
+
+        /* Grid tags for contract/market cards */
+        .grid-card-tags { padding: 6px 15px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .grid-tag { 
+            font-size: 10px; padding: 2px 7px; border: 1px solid var(--amb-dim); 
+            color: var(--text-mut); border-radius: 2px; letter-spacing: 0.5px;
+        }
+        .grid-tag.special { border-color: var(--green); color: var(--green); }
+
+        .screen { display: none !important; flex: 1; flex-direction: column; height: 100%; position: relative; z-index: 10; }
+        .screen.active { display: flex !important; }
+
+        #auth-screen { 
+            align-items: center; justify-content: center; padding: 20px;
+            background: 
+                radial-gradient(ellipse 60% 50% at 50% 50%, rgba(224,168,48,0.04) 0%, transparent 70%),
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(224,168,48,0.015) 2px, rgba(224,168,48,0.015) 4px);
+        }
+        .auth-logo { 
+            text-align: center; margin-bottom: 24px; letter-spacing: 4px; font-size: 11px; color: var(--text-mut);
+            animation: fadeIn 0.4s ease;
+        }
+        .auth-logo-title { 
+            font-size: 26px; font-weight: bold; color: var(--amb); letter-spacing: 8px;
+            text-shadow: 0 0 20px rgba(224,168,48,0.6), 0 0 40px rgba(224,168,48,0.2);
+            margin-bottom: 4px;
+        }
+        .auth-logo-cursor { display: inline-block; animation: blink 1s step-end infinite; }
+        .auth-box { 
+            border: 1px solid var(--amb-dim); 
+            background: rgba(4,4,3,0.97); 
+            padding: 0; width: 100%; max-width: 420px; position: relative; 
+            border-radius: 4px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.9), 0 0 1px var(--amb-dim), inset 0 1px 0 rgba(224,168,48,0.1);
+            animation: fadeIn 0.5s ease 0.1s both;
+            animation: pulseGlow 4s ease-in-out infinite;
+        }
+        .auth-box-header { 
+            background: linear-gradient(135deg, var(--amb-dark) 0%, rgba(0,0,0,0.8) 100%);
+            padding: 10px 18px; border-bottom: 1px solid var(--amb-dim); 
+            font-weight: bold; font-size: 11px; letter-spacing: 3px;
+            border-radius: 3px 3px 0 0; color: var(--text-mut);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .auth-box-header::before { content: '■'; color: var(--amb); font-size: 8px; }
+        .auth-box-body { padding: 24px 26px 26px; }
+        .auth-tabs { display: flex; margin-bottom: 22px; border-bottom: 1px solid var(--amb-dark); gap: 0; }
+        .auth-tab-btn { 
+            flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid transparent;
+            color: var(--text-mut); cursor: pointer; transition: 0.2s; font-size: 12px; letter-spacing: 2px;
+            margin-bottom: -1px;
+        }
+        .auth-tab-btn:hover { color: var(--amb); background: rgba(224,168,48,0.04); box-shadow: none; }
+        .auth-tab-btn.active { color: var(--amb); font-weight: bold; border-bottom-color: var(--amb); background: transparent; box-shadow: none; }
+
+        header { 
+            border-bottom: 1px solid var(--amb-dim); padding: 8px 20px; 
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(10,10,8,0.98); font-size: 13px; font-weight: bold; z-index: 100;
+            letter-spacing: 2px;
+            box-shadow: 0 1px 0 rgba(224,168,48,0.08), 0 2px 20px rgba(0,0,0,0.8);
+        }
+        .header-status { 
+            color: var(--green); font-size: 11px; display: flex; align-items: center; gap: 6px;
+        }
+        .header-status::before { 
+            content: '●'; font-size: 8px; 
+            animation: blink 2s step-end infinite;
+        }
+        .pda-container { display: flex; flex: 1; overflow: hidden; }
+        
+        .sidebar { width: 250px; min-width: 250px; border-right: 1px solid var(--amb-dim); display: flex; flex-direction: column; background: rgba(5,5,4,0.99); z-index: 90; }
+        @media (max-width: 768px) { .sidebar { display: none; } }
+        
+        .side-block { border-bottom: 1px solid rgba(107,79,24,0.4); padding: 14px 18px; }
+        .side-title { font-size: 9px; color: var(--amb-dim); margin-bottom: 10px; letter-spacing: 3px; }
+        
+        .profile-card { display: flex; gap: 12px; align-items: center; }
+        .profile-img-wrap { 
+            width: 54px; height: 54px; border: 1px solid var(--amb-dim); 
+            background: var(--bg-panel); padding: 2px; border-radius: 3px;
+            box-shadow: var(--glow);
+        }
+        .profile-img-wrap img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(60%) sepia(60%); border-radius: 2px; }
+        
+        .stat-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+        .role-badge { display: inline-block; padding: 2px 5px; font-size: 9px; border: 1px solid var(--amb-dim); margin-right: 3px; margin-top: 3px; border-radius: 3px; }
+        .role-leader { background: var(--green); color: #000; border-color: var(--green); }
+        .role-trusted { background: var(--amb-dark); color: var(--amb); }
+
+        .sidebar-bulletins-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 10px 15px; }
+        .sidebar-bulletins-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+        .mini-item { border-bottom: 1px dashed rgba(107,79,24,0.4); padding-bottom: 5px; }
+        .mini-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .mini-item-title { color: var(--amb); font-weight: bold; margin-bottom: 2px; font-size: 10px; }
+
+        .main-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-base); position: relative; overflow: hidden; }
+        
+        .tabs-header { 
+            display: flex; border-bottom: 1px solid var(--amb-dim); 
+            background: rgba(8,8,6,0.99); overflow-x: auto; white-space: nowrap; z-index: 50;
+        }
+        .tab-btn { 
+            flex: 0 0 auto; border: none; border-right: 1px solid rgba(107,79,24,0.3); 
+            background: transparent; padding: 11px 18px; font-size: 11px; color: var(--text-mut); 
+            border-radius: 0; letter-spacing: 1.5px; transition: all 0.15s;
+        }
+        .tab-btn:hover { background: rgba(224,168,48,0.06); color: var(--amb); box-shadow: none; }
+        .tab-btn.active { 
+            background: rgba(224,168,48,0.08); color: var(--amb); font-weight: bold; 
+            border-bottom: 2px solid var(--amb);
+            box-shadow: 0 2px 10px rgba(224,168,48,0.1) inset;
+        }
+        
+        .tab-content { display: none !important; flex: 1; overflow-y: auto; padding: 20px; flex-direction: column; gap: 15px; }
+        .tab-content.active { display: flex !important; }
+
+        .grid-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+        .grid-card {
+            border: 1px solid var(--amb-dim);
+            background: rgba(8,8,6,0.98);
+            border-radius: 3px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            animation: fadeIn 0.3s ease both;
+        }
+        .grid-card:hover { border-color: var(--amb); box-shadow: 0 0 20px rgba(0,0,0,0.7), var(--glow); }
+        .grid-card.trusted { border-color: var(--green); }
+        .grid-card.trusted:hover { box-shadow: 0 0 20px rgba(0,0,0,0.7), var(--glow-green); }
+        
+        .grid-card-header { padding: 12px 15px; display: flex; flex-direction: column; gap: 6px; }
+        .grid-card-meta { font-size: 11px; color: var(--text-mut); display: flex; justify-content: space-between; align-items: center; }
+        .grid-card-author { color: var(--green); font-weight: bold; }
+        .grid-card-title { font-size: 16px; font-weight: bold; color: #eee; line-height: 1.2; }
+        
+        .grid-card-img { width: 100%; height: 200px; object-fit: cover; background: #050505; border-top: 1px solid #1a1a15; border-bottom: 1px solid #1a1a15; filter: grayscale(30%) sepia(20%); }
+        .grid-card-body { padding: 15px; font-size: 13px; color: #bbb; flex: 1; white-space: pre-wrap; line-height: 1.4; }
+        .grid-card-footer { padding: 12px 15px; background: #0a0a08; border-top: 1px solid #1a1a15; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+        .f-nav { display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
+        .f-nav button { flex: 1; min-width: 120px; background: var(--bg-panel); color: var(--text-mut); border-color: var(--amb-dark); font-size: 11px; }
+        .f-nav button.active { background: var(--amb-dark); color: var(--amb); border-color: var(--amb); box-shadow: var(--glow); }
+
+        .trader-section { border: 1px solid var(--amb-dim); padding: 15px; margin-bottom: 15px; background: rgba(5,5,4,0.98); border-radius: 3px;}
+        .trader-section-title { font-size: 13px; letter-spacing: 2px; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .digger-table-wrapper { overflow-x: auto; }
+        .digger-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        .digger-table th { background: rgba(46,34,16,0.8); color: var(--amb); padding: 7px 9px; border: 1px solid rgba(107,79,24,0.5); font-weight: normal; letter-spacing: 1px; font-size: 10px; }
+        .digger-table td { padding: 7px 9px; border: 1px solid rgba(107,79,24,0.3); }
+        .digger-table tr:hover td { background: rgba(224,168,48,0.04); }
+
+        .modal-overlay { 
+            display: none !important; position: fixed; inset: 0; 
+            background: rgba(0,0,0,0.92); 
+            backdrop-filter: blur(2px);
+            z-index: 3000; justify-content: center; align-items: center; padding: 20px; 
+        }
+        .modal-overlay.active { display: flex !important; }
+        .modal-box { 
+            border: 1px solid var(--amb-dim); background: rgba(4,4,3,0.99); 
+            padding: 24px; width: 100%; max-width: 600px; 
+            box-shadow: 0 0 60px rgba(0,0,0,0.95), var(--glow);
+            max-height: 90vh; overflow-y: auto; border-radius: 3px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 4000; }
+        .toast { 
+            background: rgba(4,4,3,0.97); border: 1px solid var(--amb); color: var(--amb); 
+            padding: 10px 16px; font-size: 11px; letter-spacing: 1.5px;
+            box-shadow: var(--glow), 0 4px 20px rgba(0,0,0,0.8); border-radius: 2px;
+            animation: fadeIn 0.2s ease;
+        }
+        .toast.error { border-color: var(--red); color: var(--red); box-shadow: var(--glow-red), 0 4px 20px rgba(0,0,0,0.8); }
+        .toast.success { border-color: var(--green); color: var(--green); box-shadow: var(--glow-green), 0 4px 20px rgba(0,0,0,0.8); }
+
+        .admin-only { display: none !important; }
+        body.is-admin .admin-only { display: inline-block !important; } 
+        body.is-admin .tab-btn.admin-only { display: inline-block !important; } 
+        body.is-admin .tab-content.admin-only { display: none !important; } 
+        body.is-admin .tab-content.admin-only.active { display: flex !important; }
+
+        /* User row улучшенный */
+        .user-row { display: flex; gap: 10px; align-items: flex-start; border: 1px solid rgba(107,79,24,0.4); padding: 12px; background: rgba(4,4,3,0.98); border-radius: 3px; transition: border-color 0.2s; }
+        .user-row:hover { border-color: var(--amb-dim); }
+        .user-row img { width: 42px; height: 42px; border: 1px solid var(--amb-dim); filter: grayscale(80%) sepia(40%); border-radius: 2px; object-fit: cover; }
+
+        /* Mini boxes */
+        .mini-box { border: 1px solid rgba(107,79,24,0.5); background: rgba(3,3,2,0.98); display: flex; flex-direction: column; max-height: 140px; border-radius: 3px; overflow: hidden; }
+        .mini-box-header { background: var(--amb-dark); color: var(--amb); padding: 4px 8px; font-size: 9px; font-weight: bold; border-bottom: 1px solid var(--amb-dim); letter-spacing: 2px; }
+        .mini-box-content { padding: 6px; overflow-y: auto; font-size: 10px; color: var(--text-mut); display: flex; flex-direction: column; gap: 8px; }
+        
+        #loader { 
+            position: fixed; inset: 0; background: #000; z-index: 99999; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            color: var(--amb); font-size: 13px; letter-spacing: 4px;
+            gap: 16px;
+        }
+        .loader-bar { 
+            width: 200px; height: 2px; background: var(--amb-dark); border-radius: 1px; overflow: hidden;
+        }
+        .loader-bar-fill { 
+            height: 100%; background: var(--amb); width: 0%; 
+            animation: loaderFill 1.5s ease forwards;
+            box-shadow: var(--glow-strong);
+        }
+        @keyframes loaderFill { 0% { width: 0%; } 60% { width: 85%; } 80% { width: 90%; } 100% { width: 100%; } }
+        .paste-hint { font-size: 9px; color: #5a82af; text-align: right; margin-top: -8px; }
+    </style>
+</head>
+<body>
+
+<div class="scanline"></div>
+<div id="loader">
+    <div style="letter-spacing: 6px; font-size: 20px; color: var(--amb); text-shadow: 0 0 20px rgba(224,168,48,0.6);">KOD OS</div>
+    <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+    УСТАНОВКА СОЕДИНЕНИЯ...
+</div>
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ЭКРАН АВТОРИЗАЦИИ И РЕГИСТРАЦИИ -->
+<div id="auth-screen" class="screen">
+    <div class="auth-logo">
+        <div class="auth-logo-title">KOD OS<span class="auth-logo-cursor">_</span></div>
+        <div>СЕТЬ СТАЛКЕРОВ · ВЕРСИЯ 1.0</div>
+    </div>
+    <div class="auth-box">
+        <div class="auth-box-header">СИСТЕМА АВТОРИЗОВАННОГО ДОСТУПА</div>
+        <div class="auth-box-body">
+        <div class="auth-tabs">
+            <button class="auth-tab-btn active" id="btn-tab-login" onclick="UI.switchAuthTab('login')">ВХОД</button>
+            <button class="auth-tab-btn" id="btn-tab-register" onclick="UI.switchAuthTab('register')">РЕГИСТРАЦИЯ</button>
+        </div>
+
+        <div id="auth-form-login">
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 9px; color: var(--text-mut); letter-spacing: 2px; display: block; margin-bottom: 5px;">▸ ПОЗЫВНОЙ (ЛОГИН)</label>
+                    <input id="log-callsign" type="text" style="width: 100%;" placeholder="Пример: Меченый">
+                </div>
+                <div>
+                    <label style="font-size: 9px; color: var(--text-mut); letter-spacing: 2px; display: block; margin-bottom: 5px;">▸ ПАРОЛЬ</label>
+                    <input id="log-pass" type="password" style="width: 100%;" placeholder="••••••">
+                </div>
+            </div>
+            <button style="width: 100%; padding: 12px; letter-spacing: 3px;" onclick="AuthSystem.login()">ВОЙТИ В СЕТЬ</button>
+        </div>
+
+        <div id="auth-form-register" style="display: none;">
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <div>
+                    <label style="font-size: 9px; color: var(--text-mut); letter-spacing: 2px; display: block; margin-bottom: 5px;">▸ ПОЗЫВНОЙ (ЛОГИН)</label>
+                    <input id="reg-callsign" type="text" style="width: 100%;" placeholder="Пример: Меченый">
+                </div>
+                <div>
+                    <label style="font-size: 9px; color: var(--text-mut); letter-spacing: 2px; display: block; margin-bottom: 5px;">▸ ОПИСАНИЕ (ОТРАЖАЕТСЯ В БАЗЕ)</label>
+                    <input id="reg-fullname" type="text" style="width: 100%;" placeholder="Вольный бродяга">
+                </div>
+                <div>
+                    <label style="font-size: 9px; color: var(--text-mut); letter-spacing: 2px; display: block; margin-bottom: 5px;">▸ ПАРОЛЬ (МИН. 6 СИМВОЛОВ)</label>
+                    <input id="reg-pass" type="password" style="width: 100%;" placeholder="••••••">
+                </div>
+                <!-- Скрытый параметр аффилиации: все по умолчанию Одиночки -->
+                <div style="display: none;">
+                    <label style="font-size: 9px; color: var(--text-mut); letter-spacing: 2px; display: block; margin-bottom: 5px;">▸ АФФИЛИАЦИЯ (ПРИ РЕГИСТРАЦИИ)</label>
+                    <select id="reg-faction" style="width: 100%;">
+                        <option value="Одиночка" selected>Одиночка</option>
+                    </select>
+                </div>
+            </div>
+            <div style="font-size: 9px; color: var(--amb-dim); text-align: center; margin-bottom: 16px; border: 1px dashed var(--amb-dim); padding: 8px; letter-spacing: 1px; border-radius: 2px; background: rgba(224,168,48,0.02);">
+                ВНИМАНИЕ: ДУБЛИКАТЫ АККАУНТОВ ЗАПРЕЩЕНЫ. ДАННЫЕ ПРИВЯЗЫВАЮТСЯ НАВСЕГДА.
+            </div>
+            <button style="width: 100%; padding: 12px; letter-spacing: 3px;" onclick="AuthSystem.register()">СОЗДАТЬ ПРОФИЛЬ</button>
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- ОСНОВНОЙ ЭКРАН ПДА -->
+<div id="pda-screen" class="screen">
+    <header>
+        <div style="display:flex; align-items:center; gap: 12px;">
+            <span style="letter-spacing: 4px; font-size: 14px; color: var(--amb); text-shadow: 0 0 10px rgba(224,168,48,0.4);">KOD OS</span>
+            <span style="font-size: 9px; color: var(--amb-dim); letter-spacing: 1px;">v1.0</span>
+        </div>
+        <div class="header-status">СЕТЬ [ONLINE]</div>
+        <div id="clock" class="color-mut" style="font-size: 12px; letter-spacing: 2px;">00:00:00</div>
+    </header>
+
+    <div class="pda-container">
+        <!-- САЙДБАР -->
+        <div class="sidebar">
+            <div class="side-block">
+                <div class="side-title">ЛИЧНОЕ ДЕЛО</div>
+                <div class="profile-card">
+                    <div class="profile-img-wrap"><img id="ui-avatar" src="" alt="avatar"></div>
+                    <div style="flex: 1; overflow: hidden;">
+                        <div id="ui-callsign" style="font-size: 16px; font-weight: bold; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">-</div>
+                        <div id="ui-faction" style="font-size: 11px; color: var(--text-mut); margin-top: 4px;">-</div>
+                    </div>
+                </div>
+                <div id="ui-roles" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div class="side-block">
+                <div class="side-title">СТАТИСТИКА</div>
+                <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px; text-align: center; border: var(--border-style); padding: 5px; background: var(--bg-panel); border-radius: 6px;" id="ui-rep">0 REP</div>
+                <div class="stat-row"><span class="color-mut">ВЫПОЛНЕНО ЗАКАЗОВ:</span><span id="ui-done" class="color-green">0</span></div>
+            </div>
+            
+            <div class="sidebar-bulletins-wrapper">
+                <div class="side-title">ОТКРЫТЫЙ ЭФИР</div>
+                <div class="sidebar-bulletins-scroll mini-scroll" id="ui-sidebar-bulletins"></div>
+            </div>
+
+            <div style="padding: 14px 18px; border-top: 1px solid rgba(107,79,24,0.3);">
+                <button class="btn-red" style="width: 100%; letter-spacing: 2px; font-size: 11px;" onclick="AuthSystem.logout()">■ ОТКЛЮЧИТЬСЯ ОТ СЕТИ</button>
+            </div>
+        </div>
+
+        <div class="main-area">
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="UI.switchTab('bulletins')">ВЕСТНИК</button>
+                <button class="tab-btn" onclick="UI.switchTab('board-factions')">ЗАКАЗЫ (ГРУППИРОВКИ)</button>
+                <button class="tab-btn" onclick="UI.switchTab('board-stalkers')">ЗАКАЗЫ (СТАЛКЕРЫ)</button>
+                <button class="tab-btn" onclick="UI.switchTab('market')">БАРТЕР</button>
+                <button class="tab-btn" onclick="UI.switchTab('traders')">ТОРГОВЦЫ</button>
+                
+                <button id="tab-btn-mgmt" class="tab-btn color-green" style="display: none;" onclick="UI.switchTab('mgmt')">УПРАВЛЕНИЕ ГРУППОЙ</button>
+                <!-- Канал отчётов группировки — видят только участники (member) -->
+                <button id="tab-btn-group-reports" class="tab-btn" style="display: none; color: var(--amb);" onclick="UI.switchTab('group-reports')">ОТЧЁТЫ ГРУППЫ</button>
+                
+                <button class="tab-btn admin-only color-green" onclick="UI.switchTab('reports')">[А] ОТЧЕТЫ</button>
+                <button class="tab-btn admin-only color-green" onclick="UI.switchTab('users')">[А] БАЗА</button>
+                <button class="tab-btn admin-only color-green" onclick="UI.switchTab('settings')">[А] НАСТРОЙКИ</button>
+            </div>
+
+            <div id="tab-bulletins" class="tab-content active">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px; margin-bottom: 5px;">
+                    <div style="font-size: 16px; font-weight: bold;">СВОДКИ И ОБЪЯВЛЕНИЯ</div>
+                    <button class="btn-green admin-only btn-small" onclick="BulletinSystem.openModal()">+ ДОБАВИТЬ СВОДКУ</button>
+                </div>
+                <div id="bulletins-list" class="grid-list"></div>
+            </div>
+
+            <div id="tab-board-factions" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px; margin-bottom: 5px;">
+                    <div style="font-size: 16px; font-weight: bold;">ОФИЦИАЛЬНЫЕ КОНТРАКТЫ</div>
+                    <button class="btn-green" onclick="ContractSystem.openModal()">+ СОЗДАТЬ ЗАКАЗ</button>
+                </div>
+                <div id="factions-contracts-list" class="grid-list"></div>
+            </div>
+
+            <div id="tab-board-stalkers" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px; margin-bottom: 5px;">
+                    <div style="font-size: 16px; font-weight: bold;">ЧАСТНЫЕ ПОРУЧЕНИЯ</div>
+                    <button class="btn-green" onclick="ContractSystem.openModal()">+ СОЗДАТЬ ЗАКАЗ</button>
+                </div>
+                <div id="stalkers-contracts-list" class="grid-list"></div>
+            </div>
+
+            <div id="tab-market" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px; margin-bottom: 5px;">
+                    <div style="font-size: 16px; font-weight: bold;">ДОСКА ОБЪЯВЛЕНИЙ СТАЛКЕРОВ</div>
+                    <button class="btn-green" onclick="UI.showModal('modal-create-market')">+ ДОБАВИТЬ ЛОТ</button>
+                </div>
+                <div id="market-list" class="grid-list"></div>
+            </div>
+
+            <div id="tab-traders" class="tab-content">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--amb-dark); padding-bottom: 10px;">
+                    <button id="btn-cat-communities" class="active" style="flex:1; background: var(--bg-panel);" onclick="TraderSystem.switchCategory('communities')">СТАЛКЕРСКИЕ СООБЩЕСТВА</button>
+                    <button id="btn-cat-factions" style="flex:1; background: var(--bg-panel);" onclick="TraderSystem.switchCategory('factions')">ГРУППИРОВКИ</button>
+                </div>
+                <div class="f-nav" id="traders-f-nav"></div>
+                <div id="trader-tables-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
+            </div>
+
+            <div id="tab-mgmt" class="tab-content">
+                <div style="font-size: 16px; font-weight: bold; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px; margin-bottom: 15px;">УПРАВЛЕНИЕ ДОВЕРЕННЫМИ ЛИЦАМИ</div>
+                <div id="mgmt-group-select-wrapper" style="margin-bottom: 15px;">
+                    <label style="font-size: 10px; color: var(--text-mut);">ВЫБЕРИТЕ ПОДКОНТРОЛЬНУЮ ГРУППУ:</label>
+                    <select id="inp-mgmt-group" style="width: 100%;" onchange="Renderer.renderMgmt()"></select>
+                </div>
+                <div id="mgmt-users-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <div id="tab-group-reports" class="tab-content">
+                <div style="font-size:16px; font-weight:bold; border-bottom:1px dashed var(--amb-dim); padding-bottom:10px; margin-bottom:15px;">
+                    ВХОДЯЩИЕ РАПОРТЫ — ЗАДАНИЯ ГРУППИРОВКИ
+                </div>
+                <div id="group-reports-list" style="display:flex; flex-direction:column; gap:15px;"></div>
+            </div>
+
+            <div id="tab-reports" class="tab-content admin-only"><div id="reports-list" style="display: flex; flex-direction: column; gap: 15px;"></div></div>
+            <div id="tab-users" class="tab-content admin-only"><div id="users-list" style="display: flex; flex-direction: column; gap: 10px;"></div></div>
+            <div id="tab-settings" class="tab-content admin-only">
+                <div style="font-size: 16px; font-weight: bold; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px; margin-bottom: 15px;">УПРАВЛЕНИЕ УЧАСТНИКАМИ</div>
+                <div id="settings-users-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-create-contract">
+    <div class="modal-box">
+        <h2 style="margin-bottom: 15px; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px;">ОФОРМЛЕНИЕ ЗАКАЗА</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div id="contract-publisher-box" style="display:none; margin-bottom: 10px;">
+                <label style="font-size: 10px; color: var(--text-mut);">ОПУБЛИКОВАТЬ ОТ ЛИЦА:</label>
+                <select id="inp-cpub" style="width:100%;"></select>
+            </div>
+            <input id="inp-ctitle" placeholder="Краткая суть работы" style="width:100%;">
+            <textarea id="inp-cdesc" placeholder="Подробное описание" style="width:100%; height: 80px; resize: none;"></textarea>
+            <input id="inp-crep" type="number" placeholder="Награда (Укажите сумму RU)" style="width:100%;">
+            <input id="inp-cphoto" class="paste-target" placeholder="URL Фото (или нажмите Ctrl+V сюда)" style="width:100%;">
+            <div class="paste-hint">Поддерживается вставка картинки из буфера (Ctrl+V)</div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button style="flex:1;" onclick="UI.closeModal('modal-create-contract')">ОТМЕНА</button><button class="btn-green" style="flex:2;" onclick="ContractSystem.saveContract()">ВЫСТАВИТЬ</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-create-market">
+    <div class="modal-box">
+        <h2 style="margin-bottom: 15px; border-bottom: 1px dashed var(--amb-dim); padding-bottom: 10px;">СОЗДАНИЕ ЛОТА (БАРТЕР)</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <input id="inp-mtitle" placeholder="Название предмета" style="width:100%;">
+            <textarea id="inp-mdesc" placeholder="Описание состояния" style="width:100%; height: 60px; resize: none;"></textarea>
+            <input id="inp-mprice" placeholder="Цена (RU или предметы)" style="width:100%;">
+            <input id="inp-mphoto" class="paste-target" placeholder="URL Фото (или нажмите Ctrl+V сюда)" style="width:100%;">
+            <div class="paste-hint">Поддерживается вставка картинки из буфера (Ctrl+V)</div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button style="flex:1;" onclick="UI.closeModal('modal-create-market')">ОТМЕНА</button><button class="btn-green" style="flex:2;" onclick="MarketSystem.createItem()">РАЗМЕСТИТЬ</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-trader-item">
+    <div class="modal-box" style="border-color: var(--green);">
+        <h2 class="color-green" style="margin-bottom: 15px; border-bottom: 1px dashed var(--green); padding-bottom: 10px;">УПРАВЛЕНИЕ АССОРТИМЕНТОМ</h2>
+        <input type="hidden" id="inp-ti-id"><input type="hidden" id="inp-ti-faction"><input type="hidden" id="inp-ti-type">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 11px; color: var(--text-mut);" id="ti-modal-info"></div>
+            <input id="inp-ti-name" placeholder="Наименование (напр. АК-74)" style="width:100%;">
+            <input id="inp-ti-category" placeholder="Категория (Оружие, Медицина...)" style="width:100%;">
+            <input id="inp-ti-price" placeholder="Цена (напр. 5000 RU)" style="width:100%;">
+            <select id="inp-ti-stock" style="width:100%;">
+                <option value="МНОГО">МНОГО</option><option value="ЕСТЬ">ЕСТЬ</option><option value="МАЛО">МАЛО</option>
+                <option value="ПОД ЗАКАЗ">ПОД ЗАКАЗ</option><option value="НЕТ В НАЛИЧИИ">НЕТ В НАЛИЧИИ</option>
+            </select>
+            <label style="font-size: 10px; color: var(--text-mut); margin-top: 5px;">ОГРАНИЧЕНИЕ ДОСТУПА:</label>
+            <select id="inp-ti-trusted" style="width:100%;">
+                <option value="false">ОБЩИЙ ДОСТУП</option>
+                <option value="true">ТОЛЬКО ДЛЯ ДОВЕРЕННЫХ</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button style="flex:1;" onclick="UI.closeModal('modal-trader-item')">ОТМЕНА</button><button class="btn-green" style="flex:2;" onclick="TraderSystem.saveTraderItem()">СОХРАНИТЬ</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-bulletin">
+    <div class="modal-box" style="border-color: var(--green);">
+        <h2 class="color-green" style="margin-bottom: 15px; border-bottom: 1px dashed var(--green); padding-bottom: 10px;">[А] НОВАЯ СВОДКА</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <input id="inp-bul-title" placeholder="Заголовок сводки" style="width:100%;">
+            <textarea id="inp-bul-text" placeholder="Текст объявления (походы, новости...)" style="width:100%; height: 100px; resize: none;"></textarea>
+            
+            <label style="font-size: 10px; color: var(--text-mut); margin-top: 5px;">ПРИВЯЗКА К ГРУППИРОВКЕ:</label>
+            <select id="inp-bul-faction" style="width:100%;"></select>
+            
+            <label style="font-size: 10px; color: var(--text-mut); margin-top: 5px;">УРОВЕНЬ ДОСТУПА:</label>
+            <select id="inp-bul-trusted" style="width:100%;">
+                <option value="false">ОБЩАЯ РАССЫЛКА (ВИДЯТ ВСЕ)</option>
+                <option value="true">СЕКРЕТНАЯ СВОДКА (ТОЛЬКО ДОВЕРЕННЫЕ)</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button style="flex:1;" onclick="UI.closeModal('modal-bulletin')">ОТМЕНА</button>
+            <button class="btn-green" style="flex:2;" onclick="BulletinSystem.saveBulletin()">В ЭФИР</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirm">
+    <div class="modal-box" style="max-width: 400px; text-align: center; border-color: var(--red);">
+        <h2 id="confirm-msg" class="color-red" style="margin-bottom: 20px;">ВЫ УВЕРЕНЫ?</h2>
+        <div style="display: flex; gap: 10px;">
+            <button style="flex:1;" onclick="UI.closeModal('modal-confirm')">ОТМЕНА</button>
+            <button class="btn-red" style="flex:1;" onclick="UI.executeConfirm()">ПОДТВЕРДИТЬ</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    let firebaseConfig = {};
+    let globalAppId = 'digger-network-v6'; 
+
+    if (typeof __firebase_config !== 'undefined') {
+        firebaseConfig = JSON.parse(__firebase_config);
+        if (typeof __app_id !== 'undefined') globalAppId = __app_id;
+    } else {
+        firebaseConfig = { apiKey: "AIzaSyBMxC7rmNprdIFgFMNa4ayr6DF67rLxKm8", authDomain: "digger-3d4b2.firebaseapp.com", projectId: "digger-3d4b2" };
+    }
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+	function escapeHTML(str) {
+        	if (!str) return '';
+        	return str.toString()
+            		.replace(/&/g, '&amp;')
+            		.replace(/</g, '&lt;')
+            		.replace(/>/g, '&gt;')
+            		.replace(/"/g, '&quot;')
+            		.replace(/'/g, '&#039;');
+    }
+
+    const DEFAULT_AVATAR = 'https://i.ebayimg.com/images/g/jCEAAOSwdbNhAqSh/s-l400.jpg'; 
+    const SESSION_KEY = 'kod_os_v1_session';
+    
+    const COMMUNITIES = { 'diggers': 'Диггеры', 'yanov': 'Охрана Янова', 'village': 'Охрана Деревни', 'bar': 'Охрана Бара' };
+    const FACTIONS = { 'neutrals': 'Нейтралы', 'scientists': 'Ученые', 'duty': 'Долг', 'freedom': 'Свобода', 'military': 'ВСУ', 'bandits': 'Братва', 'csky': 'Чистое Небо' };
+    const ALL_GROUPS = { ...COMMUNITIES, ...FACTIONS };
+
+    async function hashPassword(pass) {
+        const buf = new TextEncoder().encode(pass + 'k0d0s_s@lt_2024');
+        const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    window.State = {
+        authUser: null, dbUser: null,
+        contracts: [], reports: [], users: [], marketItems: [], traderItems: [], bulletins: [],
+        traderCategory: 'communities', 
+        activeTraderId: 'diggers',
+        unsubs: []
+    };
+
+    let pendingConfirmAction = null;
+
+    window.UI = {
+        showToast: (msg, type = 'normal') => {
+            const c = document.getElementById('toast-container'); const t = document.createElement('div');
+            t.className = `toast ${type}`; t.textContent = msg; c.appendChild(t); setTimeout(() => t.remove(), 3000);
+        },
+        switchTab: (tabId) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if(event && event.currentTarget.classList.contains('tab-btn')) event.currentTarget.classList.add('active');
+            
+            const tabEl = document.getElementById('tab-' + tabId);
+            if (tabEl) {
+                tabEl.classList.add('active');
+            }
+            
+            if(tabId === 'traders') Renderer.renderTradersUI();
+            if(tabId === 'bulletins') Renderer.renderBulletins();
+            if(tabId === 'mgmt') Renderer.renderMgmt();
+            if(tabId === 'group-reports') Renderer.renderGroupReports();
+        },
+        switchAuthTab: (mode) => {
+            document.getElementById('btn-tab-login').classList.toggle('active', mode === 'login');
+            document.getElementById('btn-tab-register').classList.toggle('active', mode === 'register');
+            document.getElementById('auth-form-login').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('auth-form-register').style.display = mode === 'register' ? 'block' : 'none';
+        },
+        showModal: (id) => document.getElementById(id).classList.add('active'),
+        closeModal: (id) => document.getElementById(id).classList.remove('active'),
+        setLoader: (show) => document.getElementById('loader').style.display = show ? 'flex' : 'none',
+        updateClock: () => setInterval(() => document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8), 1000),
+        showConfirm: (msg, callback) => {
+            document.getElementById('confirm-msg').textContent = msg;
+            pendingConfirmAction = callback;
+            UI.showModal('modal-confirm');
+        },
+        executeConfirm: () => {
+            if (pendingConfirmAction) pendingConfirmAction();
+            UI.closeModal('modal-confirm');
+        }
+    };
+
+    function timeAgo(ts) {
+        const diff = Math.floor((Date.now() - ts) / 1000);
+        if(diff < 60) return 'Только что';
+        if(diff < 3600) return Math.floor(diff/60) + ' мин. назад';
+        if(diff < 86400) return Math.floor(diff/3600) + ' ч. назад';
+        return Math.floor(diff/86400) + ' д. назад';
+    }
+
+    function setupImagePaste() {
+        document.querySelectorAll('.paste-target').forEach(input => {
+            input.addEventListener('paste', function(e) {
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (let index in items) {
+                    const item = items[index];
+                    if (item.kind === 'file' && item.type.indexOf('image/') !== -1) {
+                        e.preventDefault();
+                        const blob = item.getAsFile();
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 800; 
+                            let width = img.width, height = img.height;
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                            canvas.width = width; canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            input.value = canvas.toDataURL('image/jpeg', 0.7); 
+                            UI.showToast("ФОТО ВСТАВЛЕНО", "success");
+                        };
+                        img.src = URL.createObjectURL(blob);
+                    }
+                }
+            });
+        });
+    }
+
+    window.AuthSystem = {
+        getSession: () => { try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; } },
+        saveSession: (uid, callsign, passwordHash) => { localStorage.setItem(SESSION_KEY, JSON.stringify({uid, callsign, passwordHash})); },
+        clearSession: () => { localStorage.removeItem(SESSION_KEY); },
+
+        init: async () => {
+            UI.updateClock();
+            setupImagePaste();
+            
+            const bulSelect = document.getElementById('inp-bul-faction');
+            if (bulSelect) {
+                bulSelect.innerHTML = Object.entries(ALL_GROUPS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+            }
+            
+            const regSelect = document.getElementById('reg-faction');
+            if (regSelect) {
+                regSelect.innerHTML = '<option value="Одиночка" selected>Одиночка</option>';
+            }
+
+            const session = AuthSystem.getSession();
+            if (session) {
+                try {
+                    await signInAnonymously(auth); 
+                    await AuthSystem.checkDbUser(session.uid);
+                } catch(e) {
+                    console.error(e);
+                    AuthSystem.clearSession();
+                    UI.setLoader(false);
+                    document.getElementById('auth-screen').classList.add('active');
+                }
+            } else {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                        await AuthSystem.checkDbUser(cred.user.uid);
+                        return;
+                    }
+                } catch(e) { console.error(e); }
+                UI.setLoader(false);
+                document.getElementById('auth-screen').classList.add('active');
+            }
+        },
+
+        checkDbUser: async (uid) => {
+            try {
+                const snap = await getDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid));
+                if (snap.exists()) {
+                    State.dbUser = snap.data();
+                    if (!State.dbUser.roles) State.dbUser.roles = {};
+                    State.authUser = { uid };
+                    if (State.dbUser.isAdmin) document.body.classList.add('is-admin');
+                    document.getElementById('auth-screen').classList.remove('active');
+                    document.getElementById('pda-screen').classList.add('active');
+                    DataSystem.startListeners();
+                } else {
+                    AuthSystem.clearSession();
+                    UI.showToast('ПРОФИЛЬ НЕ НАЙДЕН В БАЗЕ', 'error');
+                    document.getElementById('auth-screen').classList.add('active');
+                }
+            } catch(e) {
+                console.error(e);
+                UI.showToast('ОШИБКА СОЕДИНЕНИЯ С БАЗОЙ', 'error');
+                document.getElementById('auth-screen').classList.add('active');
+            }
+            UI.setLoader(false);
+        },
+
+        register: async () => {
+            const callsign = document.getElementById('reg-callsign').value.trim();
+            const pass = document.getElementById('reg-pass').value.trim();
+            const fullname = document.getElementById('reg-fullname').value.trim() || 'Неизвестный';
+            const faction = document.getElementById('reg-faction').value;
+
+            if (!callsign || !pass) return UI.showToast('ВВЕДИТЕ ЛОГИН И ПАРОЛЬ', 'error');
+            if (pass.length < 6) return UI.showToast('ПАРОЛЬ ДОЛЖЕН БЫТЬ ОТ 6 СИМВОЛОВ', 'error');
+            UI.setLoader(true);
+
+            // isAdmin НЕ задаётся при регистрации — только через Firebase Console вручную
+            const passwordHash = await hashPassword(pass);
+
+            try {
+                const basePath = ['artifacts', globalAppId, 'public', 'data'];
+                const existing = await getDocs(query(collection(db, ...basePath, 'users'), where('callsign', '==', callsign)));
+                if (!existing.empty) {
+                    UI.showToast('ПОЗЫВНОЙ УЖЕ ЗАНЯТ. ИСПОЛЬЗУЙТЕ ВХОД', 'error');
+                    UI.setLoader(false);
+                    return;
+                }
+
+                const anonCred = await signInAnonymously(auth);
+                const uid = anonCred.user.uid;
+
+                const userData = {
+                    uid, callsign, fullname,
+                    faction: faction,
+                    avatar: DEFAULT_AVATAR,
+                    rep: 0,
+                    done: 0, fail: 0,
+                    isAdmin: false, passwordHash,
+                    roles: {}
+                };
+
+                await setDoc(doc(db, ...basePath, 'users', uid), userData);
+                AuthSystem.saveSession(uid, callsign, passwordHash);
+                await AuthSystem.checkDbUser(uid);
+            } catch(e) {
+                console.error(e);
+                UI.showToast('ОШИБКА: ' + (e.code || e.message), 'error');
+                UI.setLoader(false);
+            }
+        },
+
+        login: async () => {
+            const callsign = document.getElementById('log-callsign').value.trim();
+            const pass = document.getElementById('log-pass').value.trim();
+            if (!callsign || !pass) return UI.showToast('ВВЕДИТЕ ЛОГИН И ПАРОЛЬ', 'error');
+            UI.setLoader(true);
+
+            const passwordHash = await hashPassword(pass);
+
+            try {
+                const basePath = ['artifacts', globalAppId, 'public', 'data'];
+                const snap = await getDocs(query(collection(db, ...basePath, 'users'), where('callsign', '==', callsign)));
+                if (snap.empty) {
+                    UI.showToast('НЕВЕРНЫЙ ПОЗЫВНОЙ ИЛИ ПАРОЛЬ', 'error');
+                    UI.setLoader(false);
+                    return;
+                }
+
+                const userData = snap.docs[0].data();
+
+                if (!userData.passwordHash) {
+                    await updateDoc(doc(db, ...basePath, 'users', userData.uid), { passwordHash });
+                    userData.passwordHash = passwordHash;
+                }
+
+                if (userData.passwordHash !== passwordHash) {
+                    UI.showToast('НЕВЕРНЫЙ ПОЗЫВНОЙ ИЛИ ПАРОЛЬ', 'error');
+                    UI.setLoader(false);
+                    return;
+                }
+
+                await signInAnonymously(auth);
+                AuthSystem.saveSession(userData.uid, callsign, passwordHash);
+                await AuthSystem.checkDbUser(userData.uid);
+            } catch(e) {
+                console.error(e);
+                UI.showToast('ОШИБКА СОЕДИНЕНИЯ С БАЗОЙ', 'error');
+                UI.setLoader(false);
+            }
+        },
+
+        logout: async () => {
+            AuthSystem.clearSession();
+            await signOut(auth);
+            location.reload();
+        }
+    };
+
+    window.DataSystem = {
+        startListeners: () => {
+            if (!State.authUser || !State.dbUser) return;
+            const basePath = ['artifacts', globalAppId, 'public', 'data'];
+            
+            State.unsubs.forEach(u => u());
+            State.unsubs = [];
+
+            State.unsubs.push(onSnapshot(collection(db, ...basePath, 'contracts'), snap => { State.contracts = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>b.timestamp-a.timestamp); Renderer.renderBoards(); }));
+            State.unsubs.push(onSnapshot(collection(db, ...basePath, 'market'), snap => { State.marketItems = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>b.timestamp-a.timestamp); Renderer.renderMarket(); }));
+            State.unsubs.push(onSnapshot(collection(db, ...basePath, 'traderItems'), snap => { State.traderItems = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.timestamp - b.timestamp); Renderer.renderTraders(); }));
+            State.unsubs.push(onSnapshot(collection(db, ...basePath, 'bulletins'), snap => { 
+                State.bulletins = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.timestamp - a.timestamp); 
+                Renderer.renderBulletins(); Renderer.renderSidebarBulletins();
+            }));
+            
+            State.unsubs.push(onSnapshot(collection(db, ...basePath, 'users'), snap => { 
+                State.users = snap.docs.map(d => d.data()); 
+                
+                const me = State.users.find(u => u.uid === State.dbUser.uid);
+                if (me) {
+                    State.dbUser = me;
+                    if(!State.dbUser.roles) State.dbUser.roles = {};
+                    Renderer.renderSidebar(); 
+                    Renderer.renderTraders(); 
+                    Renderer.renderBulletins(); 
+                    Renderer.renderSidebarBulletins(); 
+                    Renderer.renderBoards();
+                    Renderer.renderGroupReports();
+                    updateMgmtVisibility();
+                }
+                
+                if (State.dbUser.isAdmin) {
+                    Renderer.renderUsers(); 
+                    Renderer.renderSettings(); 
+                }
+            }));
+
+            const myMgmtGroups = getMyMgmtGroups();
+            if (State.dbUser.isAdmin || myMgmtGroups.length > 0) {
+                State.unsubs.push(onSnapshot(collection(db, ...basePath, 'reports'), snap => {
+                    State.reports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    Renderer.renderReports();
+                    Renderer.renderGroupReports();
+                }));
+            }
+
+            Renderer.renderSidebar();
+            UI.switchTab('bulletins');
+        }
+    };
+
+    function hasRole(uid, groupId, roleTypes) {
+        if(State.dbUser.isAdmin) return true;
+        const u = State.users.find(x => x.uid === uid) || State.dbUser; 
+        if(!u || !u.roles) return false;
+        return roleTypes.includes(u.roles[groupId]);
+    }
+
+    function getMyMgmtGroups() {
+        if(State.dbUser.isAdmin) return Object.keys(ALL_GROUPS);
+        if(!State.dbUser.roles) return [];
+        return Object.keys(State.dbUser.roles).filter(k => State.dbUser.roles[k] === 'member');
+    }
+
+    window.updateMgmtVisibility = () => {
+        const mgmtBtn = document.getElementById('tab-btn-mgmt');
+        const grpRepBtn = document.getElementById('tab-btn-group-reports');
+        if(!mgmtBtn) return;
+        const mgmtGroups = getMyMgmtGroups();
+        if(mgmtGroups.length > 0) {
+            mgmtBtn.style.display = 'inline-block';
+            if(grpRepBtn) grpRepBtn.style.display = 'inline-block';
+            const sel = document.getElementById('inp-mgmt-group');
+            const prevVal = sel.value;
+            sel.innerHTML = mgmtGroups.map(g => `<option value="${g}">${ALL_GROUPS[g]}</option>`).join('');
+            if (mgmtGroups.includes(prevVal)) sel.value = prevVal;
+            Renderer.renderMgmt();
+            Renderer.renderGroupReports();
+        } else {
+            mgmtBtn.style.display = 'none';
+            if(grpRepBtn) grpRepBtn.style.display = 'none';
+        }
+    };
+
+    window.MgmtSystem = {
+        setTrusted: async (uid, groupId, makeTrusted) => {
+            if(!State.authUser) return;
+            if(!State.dbUser.isAdmin && (!State.dbUser.roles || State.dbUser.roles[groupId] !== 'member')) {
+                return UI.showToast('НЕТ ПРАВ ДЛЯ ЭТОГО ДЕЙСТВИЯ', 'error');
+            }
+            const user = State.users.find(u => u.uid === uid);
+            if(!user) return;
+            
+            let roles = user.roles || {};
+            if(makeTrusted) {
+                roles[groupId] = 'trusted';
+            } else {
+                if (roles[groupId] === 'trusted') {
+                    delete roles[groupId];
+                } else {
+                    return UI.showToast('НЕЛЬЗЯ ИЗМЕНИТЬ СТАТУС ДРУГОГО ЛИДЕРА', 'error');
+                }
+            }
+            
+            try {
+                await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid), { roles });
+                UI.showToast(makeTrusted ? 'СТАТУС "ДОВЕРЕННЫЙ" ВЫДАН' : 'СТАТУС "ДОВЕРЕННЫЙ" ОТОЗВАН', 'success');
+            } catch(e) {
+                UI.showToast('ОШИБКА ОБНОВЛЕНИЯ', 'error');
+            }
+        }
+    };
+
+    window.BulletinSystem = {
+        openModal: () => {
+            if (!State.dbUser.isAdmin) return;
+            document.getElementById('inp-bul-title').value = ''; document.getElementById('inp-bul-text').value = '';
+            UI.showModal('modal-bulletin');
+        },
+        saveBulletin: async () => {
+            if (!State.dbUser.isAdmin) return;
+            const title = document.getElementById('inp-bul-title').value.trim(), text = document.getElementById('inp-bul-text').value.trim();
+            const faction = document.getElementById('inp-bul-faction').value, isTrusted = document.getElementById('inp-bul-trusted').value === 'true';
+            if (!title || !text) return UI.showToast('ЗАПОЛНИТЕ ВСЕ ПОЛЯ', 'error');
+            try { await setDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'bulletins', 'BUL_' + Date.now()), { title, text, faction, isTrusted, timestamp: Date.now() }); UI.closeModal('modal-bulletin'); UI.showToast('В ЭФИРЕ', 'success'); } catch(e) {}
+        },
+        deleteBulletin: async (id) => { 
+            if (State.dbUser.isAdmin) {
+                UI.showConfirm('УДАЛИТЬ СВОДКУ?', async () => {
+                    try { await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'bulletins', id)); } catch(e) {}
+                });
+            }
+        }
+    };
+
+    window.ContractSystem = {
+        openModal: () => {
+            document.getElementById('inp-ctitle').value = ''; document.getElementById('inp-cdesc').value = ''; document.getElementById('inp-cphoto').value = ''; document.getElementById('inp-crep').value = '';
+            const mgmtGroups = getMyMgmtGroups();
+            const pubBox = document.getElementById('contract-publisher-box');
+            const pubSelect = document.getElementById('inp-cpub');
+            
+            if(mgmtGroups.length > 0) {
+                pubBox.style.display = 'block';
+                let opts = ''; 
+                mgmtGroups.forEach(g => { opts += `<option value="${g}">${ALL_GROUPS[g]} (ОФИЦИАЛЬНО)</option>`; });
+                pubSelect.innerHTML = opts;
+            } else { 
+                pubBox.style.display = 'none'; 
+                pubSelect.innerHTML = `<option value="stalker">stalker</option>`; 
+            }
+            UI.showModal('modal-create-contract');
+        },
+        saveContract: async () => {
+            if (!State.authUser) return;
+            const title = document.getElementById('inp-ctitle').value.trim(); if (!title) return UI.showToast('НЕТ НАЗВАНИЯ', 'error');
+            const pubId = document.getElementById('inp-cpub').value;
+            const type = pubId === 'stalker' ? 'stalker' : 'official';
+            const factionId = pubId === 'stalker' ? null : pubId;
+            
+            try { await setDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'contracts', 'C_'+Date.now()), { 
+                title, desc: document.getElementById('inp-cdesc').value.trim(), photo: document.getElementById('inp-cphoto').value.trim(), 
+                reward: document.getElementById('inp-crep').value.trim() || '0', 
+                type, factionId,
+                creatorId: State.authUser.uid, creatorCallsign: State.dbUser.callsign,
+                status: 'open', assigneeId: null, assigneeCallsign: null, timestamp: Date.now() 
+            }); UI.closeModal('modal-create-contract'); UI.showToast('ОПУБЛИКОВАНО', 'success'); } catch (e) {}
+        },
+        takeContract: async (cId) => { 
+            if(!State.authUser) return;
+            try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'contracts', cId), { status: 'active', assigneeId: State.authUser.uid, assigneeCallsign: State.dbUser.callsign }); } catch (e) {} 
+        },
+        deleteContract: async (cId) => { 
+            UI.showConfirm('УДАЛИТЬ КОНТРАКТ?', async () => {
+                try { await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'contracts', cId)); } catch (e) {} 
+            });
+        },
+        sendReport: async (cId) => {
+            if(!State.authUser) return;
+            const c = State.contracts.find(x => x.id === cId); if (!c) return;
+            try { await setDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'reports', 'R_'+Date.now()), { contractId: cId, contract: c, uid: State.authUser.uid, callsign: State.dbUser.callsign, timestamp: Date.now() }); UI.showToast('ОТЧЕТ ОТПРАВЛЕН', 'success'); } catch(e) {}
+        }
+    };
+
+    window.TraderSystem = {
+        switchCategory: (cat) => {
+            State.traderCategory = cat;
+            document.getElementById('btn-cat-communities').classList.toggle('active', cat === 'communities');
+            document.getElementById('btn-cat-factions').classList.toggle('active', cat === 'factions');
+            const keys = Object.keys(cat === 'communities' ? COMMUNITIES : FACTIONS);
+            State.activeTraderId = keys[0];
+            Renderer.renderTradersUI();
+        },
+        switchTrader: (groupId) => { document.querySelectorAll('.t-nav-btn').forEach(b => b.classList.remove('active')); if(event) event.currentTarget.classList.add('active'); State.activeTraderId = groupId; Renderer.renderTraders(); },
+        openModal: (faction, type, itemId = null, asTrusted = false) => {
+            const item = itemId ? State.traderItems.find(i => i.id === itemId) : null;
+            document.getElementById('inp-ti-id').value = itemId || ''; document.getElementById('inp-ti-faction').value = faction; document.getElementById('inp-ti-type').value = type;
+            document.getElementById('inp-ti-name').value = item ? item.name : ''; document.getElementById('inp-ti-category').value = item ? item.category : ''; document.getElementById('inp-ti-price').value = item ? item.price : ''; document.getElementById('inp-ti-stock').value = item ? item.stock : 'МНОГО';
+            document.getElementById('inp-ti-trusted').value = item ? item.isTrusted.toString() : (asTrusted ? 'true' : 'false');
+            document.getElementById('ti-modal-info').textContent = `РЕДАКТИРОВАНИЕ: ${ALL_GROUPS[faction]} -> ${type === 'sell' ? 'АССОРТИМЕНТ' : 'СКУПКА'}`;
+            UI.showModal('modal-trader-item');
+        },
+        saveTraderItem: async () => {
+            if(!State.authUser) return;
+            const id = document.getElementById('inp-ti-id').value, faction = document.getElementById('inp-ti-faction').value, type = document.getElementById('inp-ti-type').value;
+            const name = document.getElementById('inp-ti-name').value.trim(), category = document.getElementById('inp-ti-category').value.trim() || 'Общее', price = document.getElementById('inp-ti-price').value.trim(), stock = document.getElementById('inp-ti-stock').value;
+            const isTrusted = document.getElementById('inp-ti-trusted').value === 'true';
+
+            if (!name || !price) return UI.showToast('ОШИБКА', 'error');
+            const data = { faction, type, name, category, price, stock, isTrusted };
+            if (!id) data.timestamp = Date.now();
+            try {
+                if (id) {
+                    await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'traderItems', id), data);
+                } else {
+                    await setDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'traderItems', 'TI_' + Date.now()), data);
+                }
+                UI.closeModal('modal-trader-item'); UI.showToast('ОБНОВЛЕНО', 'success');
+            } catch(e) { console.error('saveTraderItem error:', e); UI.showToast('ОШИБКА СОХРАНЕНИЯ: ' + (e.message||e.code), 'error'); }
+        },
+        deleteItem: async (id) => { 
+            UI.showConfirm('УДАЛИТЬ ПОЗИЦИЮ?', async () => {
+                try { await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'traderItems', id)); UI.showToast('УДАЛЕНО', 'normal'); } catch(e) {} 
+            });
+        }
+    };
+
+    window.MarketSystem = {
+        createItem: async () => {
+            if(!State.authUser) return;
+            const title = document.getElementById('inp-mtitle').value.trim(), desc = document.getElementById('inp-mdesc').value.trim(), price = document.getElementById('inp-mprice').value.trim(), photo = document.getElementById('inp-mphoto').value.trim();
+            if (!title || !price) return UI.showToast('ОШИБКА', 'error');
+            try { await setDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'market', 'M_'+Date.now()), { title, desc, price, photo, sellerId: State.authUser.uid, sellerCallsign: State.dbUser.callsign, buyerId: null, buyerCallsign: null, status: 'open', sellerConfirm: false, buyerConfirm: false, timestamp: Date.now() }); UI.closeModal('modal-create-market'); UI.showToast('ГОТОВО', 'success'); } catch (e) {}
+        },
+        buyRequest: async (itemId) => { 
+            if(!State.authUser) return;
+            try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'market', itemId), { status: 'pending', buyerId: State.authUser.uid, buyerCallsign: State.dbUser.callsign }); UI.showToast('ЗАПРОС ОТПРАВЛЕН', 'success'); } catch (e) {} 
+        },
+        confirmDeal: async (itemId, isSeller) => {
+            if(!State.authUser) return;
+            const item = State.marketItems.find(i => i.id === itemId); if(!item) return;
+            try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'market', itemId), isSeller ? { sellerConfirm: true } : { buyerConfirm: true }); if ((isSeller && item.buyerConfirm) || (!isSeller && item.sellerConfirm)) { setTimeout(() => MarketSystem.deleteItem(itemId, false), 500); UI.showToast('СДЕЛКА ЗАКРЫТА', 'success'); } else UI.showToast('ЖДЕМ ВТОРУЮ СТОРОНУ...', 'normal'); } catch(e) {}
+        },
+        cancelDeal: async (itemId) => { 
+            if(!State.authUser) return;
+            try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'market', itemId), { status: 'open', buyerId: null, buyerCallsign: null, sellerConfirm: false, buyerConfirm: false }); } catch(e) {} 
+        },
+        deleteItem: async (itemId, requireConfirm = true) => { 
+            if(requireConfirm) {
+                UI.showConfirm('СНЯТЬ ЛОТ С ДОСКИ?', async () => {
+                    try { await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'market', itemId)); } catch (e) {} 
+                });
+            } else {
+                try { await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'market', itemId)); } catch (e) {} 
+            }
+        }
+    };
+
+    window.AdminSystem = {
+        setRole: async (uid, groupId, role) => {
+            if(!State.authUser) return;
+            const user = State.users.find(u => u.uid === uid); if(!user) return;
+            let roles = user.roles || {}; if(role === 'none') delete roles[groupId]; else roles[groupId] = role;
+            try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid), { roles }); UI.showToast('РОЛЬ ИЗМЕНЕНА', 'success'); } catch(e) {}
+        },
+        updateAvatar: async (uid, inputId) => {
+            if(!State.authUser) return;
+            const url = document.getElementById(inputId).value.trim(); if(!url) return;
+            try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid), { avatar: url }); UI.showToast('АВАТАР ОБНОВЛЕН', 'success'); } catch(e) {}
+        },
+        updateFaction: async (uid, faction) => {
+            if(!State.authUser) return;
+            try {
+                const user = State.users.find(u => u.uid === uid);
+                let roles = user ? { ...(user.roles || {}) } : {};
+                Object.keys(ALL_GROUPS).forEach(k => { if (roles[k] === 'member') delete roles[k]; });
+                if (faction !== 'Одиночка') {
+                    const facKey = Object.keys(ALL_GROUPS).find(k => ALL_GROUPS[k] === faction);
+                    if (facKey) roles[facKey] = 'member';
+                }
+                await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid), { faction, roles });
+                UI.showToast('ФРАКЦИЯ ОБНОВЛЕНА + РОЛЬ УЧАСТНИКА ВЫДАНА', 'success');
+            } catch(e) { console.error(e); UI.showToast('ОШИБКА ОБНОВЛЕНИЯ', 'error'); }
+        },
+        toggleAdmin: async (uid, makeAdmin) => {
+            if(!State.authUser) return;
+            UI.showConfirm(makeAdmin ? 'ВЫДАТЬ ПОЛНЫЕ ПРАВА?' : 'ЗАБРАТЬ ПРАВА?', async () => {
+                try { await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid), { isAdmin: makeAdmin }); UI.showToast('ПРАВА ИЗМЕНЕНЫ', 'success'); } catch(e) {}
+            });
+        },
+        processReport: async (reportId, isSuccess) => {
+            if(!State.authUser) return;
+            const report = State.reports.find(r => r.id === reportId); if (!report) return;
+            const contractFaction = report.contract && report.contract.factionId;
+            const canProcess = State.dbUser.isAdmin || (contractFaction && hasRole(State.authUser.uid, contractFaction, ['member']));
+            if (!canProcess) return UI.showToast('НЕТ ПРАВ ДЛЯ ЭТОГО ДЕЙСТВИЯ', 'error');
+            const targetUser = State.users.find(u => u.uid === report.uid);
+            try {
+                if (isSuccess && targetUser) {
+                    await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', targetUser.uid), { done: (targetUser.done || 0) + 1 });
+                }
+                try {
+                    await updateDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'contracts', report.contractId), {
+                        status: 'open', assigneeId: null, assigneeCallsign: null
+                    });
+                } catch(e2) { /* контракт мог быть удалён вручную */ }
+                await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'reports', reportId));
+                UI.showToast(isSuccess ? 'ПОДТВЕРЖДЕНО — ЗАКАЗ СНОВА ОТКРЫТ' : 'ОТКЛОНЕНО — ЗАКАЗ СНОВА ОТКРЫТ', isSuccess ? 'success' : 'error');
+            } catch (e) { console.error(e); }
+        },
+        deleteUser: async (uid) => {
+            if(!State.authUser) return;
+            UI.showConfirm('УДАЛИТЬ ДАННЫЙ АККАУНТ ИЗ БАЗЫ?', async () => {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', globalAppId, 'public', 'data', 'users', uid));
+                    UI.showToast('АККАУНТ УДАЛЕН', 'success');
+                } catch(e) {
+                    UI.showToast('ОШИБКА УДАЛЕНИЯ', 'error');
+                }
+            });
+        }
+    };
+
+    window.Renderer = {
+        renderSidebar: () => {
+            if(!State.dbUser) return;
+            document.getElementById('ui-avatar').src = State.dbUser.avatar; 
+            document.getElementById('ui-callsign').textContent = State.dbUser.callsign; 
+            document.getElementById('ui-faction').textContent = State.dbUser.faction || 'Одиночка'; 
+            document.getElementById('ui-rep').textContent = State.dbUser.isAdmin ? 'АДМИНИСТРАТОР СЕТИ' : 'БУХАНОК ВОДКИ - ' + (State.dbUser.done || 0); 
+            document.getElementById('ui-done').textContent = State.dbUser.done || 0;
+            const rolesBox = document.getElementById('ui-roles');
+            const r = State.dbUser.roles || {}; const keys = Object.keys(r);
+            if(keys.length > 0) {
+                let html = '<div style="font-size:9px; color:var(--text-mut); margin-bottom: 3px;">ДОПУСКИ И РОЛИ:</div>';
+                keys.forEach(k => {
+                    let cls = 'role-trusted', label = 'Доверенный';
+                    if(r[k] === 'member') { cls = 'role-leader'; label = 'Участник'; }
+                    html += `<span class="role-badge ${cls}">${ALL_GROUPS[k]} [${label}]</span> `;
+                });
+                rolesBox.innerHTML = html;
+            } else rolesBox.innerHTML = '';
+        },
+        renderSidebarBulletins: () => {
+            const container = document.getElementById('ui-sidebar-bulletins'); if(!container) return;
+            const publicBulletins = State.bulletins.filter(b => !b.isTrusted);
+            container.innerHTML = Object.keys(ALL_GROUPS).map(facId => {
+                const bils = publicBulletins.filter(b => b.faction === facId);
+                if(bils.length === 0) return '';
+                const items = bils.map(b => `<div class="mini-item"><div class="mini-item-title">${escapeHTML(b.title)}</div><div style="white-space: pre-wrap;">${b.text}</div></div>`).join('');
+                return `<div class="mini-box"><div class="mini-box-header">${ALL_GROUPS[facId]}</div><div class="mini-box-content">${items}</div></div>`;
+            }).join('');
+        },
+        renderBulletins: () => {
+            const container = document.getElementById('bulletins-list'); if(!container) return;
+            if(State.bulletins.length === 0) { container.innerHTML = '<div class="color-mut">НЕТ СВОДОК В ЭФИРЕ</div>'; return; }
+            
+            let html = '';
+            State.bulletins.forEach(b => {
+                if(b.isTrusted && !State.dbUser.isAdmin && !hasRole(State.authUser.uid, b.faction, ['trusted', 'member'])) return;
+                
+                html += `<div class="grid-card ${b.isTrusted ? 'trusted' : ''}">
+                    <div class="grid-card-header">
+                        <div class="grid-card-meta"><span>${ALL_GROUPS[b.faction]}</span><span>${timeAgo(b.timestamp)}</span></div>
+                        <div class="grid-card-title ${b.isTrusted ? 'color-green' : 'color-amb'}">${b.isTrusted ? '[СЕКРЕТНО] ' : ''}${escapeHTML(b.title)}</div>
+                    </div>
+                    <div class="grid-card-body">${b.text}</div>
+                    ${State.dbUser.isAdmin ? `<div class="grid-card-footer"><button class="btn-red btn-small" onclick="BulletinSystem.deleteBulletin('${b.id}')">УДАЛИТЬ</button></div>` : ''}
+                </div>`;
+            });
+            container.innerHTML = html || '<div class="color-mut">У ВАС НЕТ ДОСТУПА ИЛИ ЭФИР ПУСТ</div>';
+        },
+        renderBoards: () => {
+            const facContainer = document.getElementById('factions-contracts-list');
+            const stkContainer = document.getElementById('stalkers-contracts-list');
+            if(!facContainer || !stkContainer) return;
+
+            let fHtml = '', sHtml = '';
+            
+            State.contracts.forEach(c => {
+                const isMine = State.authUser && c.creatorId === State.authUser.uid;
+                const isAssigned = State.authUser && c.assigneeId === State.authUser.uid;
+                const canManage = isMine || State.dbUser.isAdmin || (c.factionId && hasRole(State.authUser.uid, c.factionId, ['member']));
+                
+                let actionBtn = '';
+                if (c.status === 'open' && !isMine) actionBtn = `<button class="btn-green btn-small" onclick="ContractSystem.takeContract('${c.id}')">ВЗЯТЬ ЗАКАЗ</button>`;
+                else if (c.status === 'active' && isAssigned) actionBtn = `<button class="btn-green btn-small" onclick="ContractSystem.sendReport('${c.id}')">СДАТЬ РАБОТУ</button>`;
+                else if (c.status === 'active') actionBtn = `<span class="color-amb" style="font-size:11px;">ИСПОЛНИТЕЛЬ: ${c.assigneeCallsign}</span>`;
+
+                const cardHtml = `<div class="grid-card">
+                    ${c.photo ? `<img src="${c.photo}" class="grid-card-img" onerror="this.style.display='none'">` : ''}
+                    <div class="grid-card-header">
+                        <div class="grid-card-meta"><span>От: <span class="grid-card-author">${c.factionId ? ALL_GROUPS[c.factionId] : c.creatorCallsign}</span></span><span>${timeAgo(c.timestamp)}</span></div>
+                        <div class="grid-card-title">${escapeHTML(c.title)}</div>
+                    </div>
+                    <div class="grid-card-body">${c.desc}</div>
+                    <div class="grid-card-tags"><span class="grid-tag special">Награда: ${c.reward}</span><span class="grid-tag" style="border-color:${c.status==='open'?'var(--green)':'var(--amb)'}">${c.status==='open'?'ДОСТУПНО':'В РАБОТЕ'}</span></div>
+                    <div class="grid-card-footer">
+                        <div>${actionBtn}</div>
+                        ${canManage ? `<button class="btn-red btn-small" onclick="ContractSystem.deleteContract('${c.id}')">УДАЛИТЬ</button>` : ''}
+                    </div>
+                </div>`;
+
+                if(c.type === 'official') fHtml += cardHtml; else sHtml += cardHtml;
+            });
+
+            facContainer.innerHTML = fHtml || '<div class="color-mut">НЕТ АКТИВНЫХ КОНТРАКТОВ</div>';
+            stkContainer.innerHTML = sHtml || '<div class="color-mut">НЕТ ЧАСТНЫХ ПОРУЧЕНИЙ</div>';
+        },
+        renderMarket: () => {
+            const container = document.getElementById('market-list'); if(!container) return;
+            if(State.marketItems.length === 0) { container.innerHTML = '<div class="color-mut">БЛОШИНЫЙ РЫНОК ПУСТ</div>'; return; }
+            
+            let html = '';
+            State.marketItems.forEach(m => {
+                const isSeller = State.authUser && m.sellerId === State.authUser.uid;
+                const isBuyer = State.authUser && m.buyerId === State.authUser.uid;
+                const isAdmin = State.dbUser.isAdmin;
+
+                let actionHtml = '';
+                if (m.status === 'open' && !isSeller) {
+                    actionHtml = `<button class="btn-green btn-small" onclick="MarketSystem.buyRequest('${m.id}')">ХОЧУ КУПИТЬ</button>`;
+                } else if (m.status === 'pending') {
+                    if(isSeller) {
+                        actionHtml = `
+                            <span class="color-amb" style="font-size:10px; display:block; margin-bottom:5px;">ПОКУПАТЕЛЬ: ${m.buyerCallsign}</span>
+                            <div style="display:flex; gap:5px;">
+                                ${!m.sellerConfirm ? `<button class="btn-green btn-small" onclick="MarketSystem.confirmDeal('${m.id}', true)">ПЕРЕДАЛ ТОВАР</button>` : `<span class="color-green" style="font-size:10px;">ВЫ ПОДТВЕРДИЛИ</span>`}
+                                <button class="btn-red btn-small" onclick="MarketSystem.cancelDeal('${m.id}')">ОТМЕНА</button>
+                            </div>
+                        `;
+                    } else if(isBuyer) {
+                        actionHtml = `
+                            <span class="color-amb" style="font-size:10px; display:block; margin-bottom:5px;">ОЖИДАНИЕ ВСТРЕЧИ...</span>
+                            <div style="display:flex; gap:5px;">
+                                ${!m.buyerConfirm ? `<button class="btn-green btn-small" onclick="MarketSystem.confirmDeal('${m.id}', false)">ПОЛУЧИЛ ТОВАР</button>` : `<span class="color-green" style="font-size:10px;">ВЫ ПОДТВЕРДИЛИ</span>`}
+                                <button class="btn-red btn-small" onclick="MarketSystem.cancelDeal('${m.id}')">ОТМЕНА</button>
+                            </div>
+                        `;
+                    } else {
+                        actionHtml = `<span class="color-amb" style="font-size:11px;">ЗАБРОНИРОВАНО</span>`;
+                    }
+                }
+
+                html += `<div class="grid-card">
+                    ${m.photo ? `<img src="${m.photo}" class="grid-card-img" onerror="this.style.display='none'">` : ''}
+                    <div class="grid-card-header">
+                        <div class="grid-card-meta"><span>Торговец: <span class="grid-card-author">${m.sellerCallsign}</span></span><span>${timeAgo(m.timestamp)}</span></div>
+                        <div class="grid-card-title">${escapeHTML(m.title)}</div>
+                    </div>
+                    <div class="grid-card-body">${m.desc}</div>
+                    <div class="grid-card-tags"><span class="grid-tag special">Цена: ${m.price}</span></div>
+                    <div class="grid-card-footer">
+                        <div style="flex:1;">${actionHtml}</div>
+                        ${isSeller || isAdmin ? `<button class="btn-red btn-small" onclick="MarketSystem.deleteItem('${m.id}')" style="margin-left:10px;">СНЯТЬ</button>` : ''}
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        },
+        renderTradersUI: () => {
+            const nav = document.getElementById('traders-f-nav'); if(!nav) return;
+            const groups = State.traderCategory === 'communities' ? COMMUNITIES : FACTIONS;
+            if(!groups[State.activeTraderId]) State.activeTraderId = Object.keys(groups)[0];
+            
+            nav.innerHTML = Object.keys(groups).map(k => `<button class="t-nav-btn ${State.activeTraderId === k ? 'active' : ''}" onclick="TraderSystem.switchTrader('${k}')">${groups[k]}</button>`).join('');
+            Renderer.renderTraders();
+        },
+        renderTraders: () => {
+            const container = document.getElementById('trader-tables-container'); if(!container) return;
+            
+            const facItems = State.traderItems.filter(i => i.faction === State.activeTraderId);
+            const sellCommon = facItems.filter(i => i.type === 'sell' && !i.isTrusted);
+            const sellTrusted = facItems.filter(i => i.type === 'sell' && i.isTrusted);
+            const buyCommon = facItems.filter(i => i.type === 'buy' && !i.isTrusted);
+            const buyTrusted = facItems.filter(i => i.type === 'buy' && i.isTrusted);
+
+            const hasMember = State.dbUser.isAdmin || hasRole(State.authUser.uid, State.activeTraderId, ['member']);
+            const hasTrusted = State.dbUser.isAdmin || hasRole(State.authUser.uid, State.activeTraderId, ['trusted', 'member']);
+
+            const renderTableRows = (items) => {
+                if(items.length === 0) return `<tr><td colspan="${hasMember ? 4 : 3}" class="color-mut" style="text-align:center;">ПУСТО</td></tr>`;
+                return items.map(i => `<tr>
+                    <td style="color:#eee;">${i.name} <span class="color-mut" style="font-size:10px;display:block;">${i.category}</span></td>
+                    <td style="color:var(--green);">${i.price}</td>
+                    <td style="font-size:11px;">${i.stock}</td>
+                    ${hasMember ? `<td>
+                        <button class="btn-small" onclick="TraderSystem.openModal('${i.faction}', '${i.type}', '${i.id}', ${i.isTrusted})">ИЗМЕНИТЬ</button>
+                        <button class="btn-red btn-small" onclick="TraderSystem.deleteItem('${i.id}')">X</button>
+                    </td>` : ''}
+                </tr>`).join('');
+            };
+
+            let html = '';
+
+            html += `<div class="trader-section">
+                <div class="trader-section-title">АССОРТИМЕНТ (ПРОДАЖА) ${hasMember ? `<button class="btn-green btn-small" onclick="TraderSystem.openModal('${State.activeTraderId}', 'sell', null, false)">+ ДОБАВИТЬ</button>` : ''}</div>
+                <div class="digger-table-wrapper"><table class="digger-table">
+                    <thead><tr><th>ТОВАР / КАТЕГОРИЯ</th><th>ЦЕНА</th><th>НАЛИЧИЕ</th>${hasMember?'<th style="width:130px;">УПР.</th>':''}</tr></thead>
+                    <tbody>${renderTableRows(sellCommon)}</tbody>
+                </table></div>
+            </div>`;
+
+            if (sellTrusted.length > 0 || hasMember) {
+                if (hasTrusted) {
+                    html += `<div class="trader-section" style="border-color: var(--amb); background: rgba(209, 154, 34, 0.05);">
+                        <div class="trader-section-title" style="color: var(--amb);">СПЕЦ. АССОРТИМЕНТ (ДЛЯ ДОВЕРЕННЫХ) ${hasMember ? `<button class="btn-green btn-small" onclick="TraderSystem.openModal('${State.activeTraderId}', 'sell', null, true)">+ ДОБАВИТЬ (ДОВЕР.)</button>` : ''}</div>
+                        <div class="digger-table-wrapper"><table class="digger-table">
+                            <thead><tr><th style="background:var(--amb-dim);">ТОВАР / КАТЕГОРИЯ</th><th style="background:var(--amb-dim);">ЦЕНА</th><th style="background:var(--amb-dim);">НАЛИЧИЕ</th>${hasMember?'<th style="background:var(--amb-dim);width:130px;">УПР.</th>':''}</tr></thead>
+                            <tbody>${renderTableRows(sellTrusted)}</tbody>
+                        </table></div>
+                    </div>`;
+                }
+            }
+
+            html += `<div class="trader-section">
+                <div class="trader-section-title">СКУПКА (ПОКУПАЮТ У ВАС) ${hasMember ? `<button class="btn-green btn-small" onclick="TraderSystem.openModal('${State.activeTraderId}', 'buy', null, false)">+ ДОБАВИТЬ</button>` : ''}</div>
+                <div class="digger-table-wrapper"><table class="digger-table">
+                    <thead><tr><th>ТОВАР / КАТЕГОРИЯ</th><th>ЦЕНА</th><th>ТРЕБОВАНИЕ</th>${hasMember?'<th style="width:130px;">УПР.</th>':''}</tr></thead>
+                    <tbody>${renderTableRows(buyCommon)}</tbody>
+                </table></div>
+            </div>`;
+
+            if (buyTrusted.length > 0 || hasMember) {
+                if (hasTrusted) {
+                    html += `<div class="trader-section" style="border-color: var(--amb); background: rgba(209, 154, 34, 0.05);">
+                        <div class="trader-section-title" style="color: var(--amb);">СПЕЦ. СКУПКА (У ДОВЕРЕННЫХ) ${hasMember ? `<button class="btn-green btn-small" onclick="TraderSystem.openModal('${State.activeTraderId}', 'buy', null, true)">+ ДОБАВИТЬ (ДОВЕР.)</button>` : ''}</div>
+                        <div class="digger-table-wrapper"><table class="digger-table">
+                            <thead><tr><th style="background:var(--amb-dim);">ТОВАР / КАТЕГОРИЯ</th><th style="background:var(--amb-dim);">ЦЕНА</th><th style="background:var(--amb-dim);">ТРЕБОВАНИЕ</th>${hasMember?'<th style="background:var(--amb-dim);width:130px;">УПР.</th>':''}</tr></thead>
+                            <tbody>${renderTableRows(buyTrusted)}</tbody>
+                        </table></div>
+                    </div>`;
+                }
+            }
+
+            container.innerHTML = html;
+        },
+        
+        renderMgmt: () => {
+            const container = document.getElementById('mgmt-users-list');
+            if(!container) return;
+            const sel = document.getElementById('inp-mgmt-group');
+            const activeGroup = sel ? sel.value : null;
+            if(!activeGroup) {
+                container.innerHTML = '<div class="color-mut">НЕТ ДОСТУПНЫХ ГРУПП ДЛЯ УПРАВЛЕНИЯ</div>';
+                return;
+            }
+
+            container.innerHTML = State.users.map(u => {
+                const uRoles = u.roles || {};
+                const currentRole = uRoles[activeGroup] || 'none';
+                const isFactionMember = u.faction === ALL_GROUPS[activeGroup];
+
+                let actionHtml = '';
+                let roleLabel = '';
+                let rowBorder = '';
+
+                if (currentRole === 'member') {
+                    roleLabel = '<span style="color:var(--green);">УЧАСТНИК ГРУППЫ</span>';
+                    actionHtml = `<span class="color-green" style="font-size:11px; letter-spacing:1px; border:1px solid var(--green); padding:2px 6px; border-radius:2px;">УЧАСТНИК</span>`;
+                    rowBorder = 'border-color: var(--green);';
+                } else if (isFactionMember && currentRole !== 'trusted') {
+                    roleLabel = '<span style="color:var(--green);">УЧАСТНИК ФРАКЦИИ</span>';
+                    actionHtml = `<span class="color-green" style="font-size:11px; letter-spacing:1px; border:1px solid var(--green); padding:2px 6px; border-radius:2px;">УЧАСТНИК</span>`;
+                    rowBorder = 'border-color: var(--green);';
+                } else if (currentRole === 'trusted') {
+                    roleLabel = '<span style="color:var(--amb);">ДОВЕРЕННОЕ ЛИЦО</span>';
+                    actionHtml = `<button class="btn-red btn-small" onclick="MgmtSystem.setTrusted('${u.uid}', '${activeGroup}', false)">— УБРАТЬ ДОПУСК</button>`;
+                    rowBorder = 'border-color: var(--amb-dim);';
+                } else {
+                    roleLabel = '<span style="color:var(--text-mut);">Обычный сталкер</span>';
+                    actionHtml = `<button class="btn-green btn-small" onclick="MgmtSystem.setTrusted('${u.uid}', '${activeGroup}', true)">+ ДОВЕРЕННЫЙ</button>`;
+                    rowBorder = '';
+                }
+
+                return `<div class="user-row" style="justify-content: space-between; align-items: center; width: 100%; ${rowBorder}">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <img src="${u.avatar || DEFAULT_AVATAR}" alt="av" style="width: 36px; height: 36px; object-fit:cover;">
+                        <div>
+                            <div style="font-weight:bold; color:var(--amb);">${u.callsign}</div>
+                            <div style="font-size:10px; color:var(--text-mut);">Фракция: <span style="color:var(--amb);">${u.faction || 'Одиночка'}</span></div>
+                            <div style="font-size:10px; color:var(--text-mut); margin-top:2px;">Статус: ${roleLabel}</div>
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;">
+                        ${actionHtml}
+                    </div>
+                </div>`;
+            }).join('');
+        },
+
+        renderReports: () => {
+            const container = document.getElementById('reports-list'); if(!container) return;
+            if(State.reports.length === 0) { container.innerHTML = '<div class="color-mut">НЕТ НОВЫХ ОТЧЕТОВ</div>'; return; }
+            container.innerHTML = State.reports.map(r => `<div style="border: var(--border-style); padding: 15px; background: #000;">
+                <div style="font-weight:bold; color:var(--green); margin-bottom: 5px;">РАПОРТ ОТ: ${r.callsign}</div>
+                <div style="font-size:12px; color:#bbb; margin-bottom: 5px;">По контракту: ${r.contract ? r.contract.title : r.contractId}</div>
+                ${r.contract && r.contract.factionId ? `<div style="font-size:11px; color:var(--text-mut); margin-bottom:8px;">Группировка: ${ALL_GROUPS[r.contract.factionId] || r.contract.factionId}</div>` : ''}
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-green btn-small" onclick="AdminSystem.processReport('${r.id}', true)">ПРИНЯТЬ (+ REP)</button>
+                    <button class="btn-red btn-small" onclick="AdminSystem.processReport('${r.id}', false)">ОТКЛОНИТЬ</button>
+                </div>
+            </div>`).join('');
+        },
+        renderGroupReports: () => {
+            const container = document.getElementById('group-reports-list'); if(!container) return;
+            const memberGroups = Object.keys(State.dbUser.roles || {}).filter(k => State.dbUser.roles[k] === 'member');
+            if (memberGroups.length === 0) {
+                container.innerHTML = '<div class="color-mut">ВЫ НЕ ЯВЛЯЕТЕСЬ УЧАСТНИКОМ НИ ОДНОЙ ГРУППИРОВКИ</div>';
+                return;
+            }
+            const myReports = State.reports.filter(r => {
+                const c = r.contract || {};
+                return c.factionId && memberGroups.includes(c.factionId);
+            });
+            if (myReports.length === 0) {
+                container.innerHTML = '<div class="color-mut">НЕТ ВХОДЯЩИХ РАПОРТОВ ОТ ВАШЕЙ ГРУППИРОВКИ</div>';
+                return;
+            }
+            container.innerHTML = myReports.map(r => {
+                const facName = r.contract && r.contract.factionId ? (ALL_GROUPS[r.contract.factionId] || r.contract.factionId) : '?';
+                return `<div style="border:1px solid var(--amb-dim); padding:15px; background:#000; border-radius:3px;">
+                    <div style="font-weight:bold; color:var(--green); margin-bottom:5px; font-size:13px;">▸ РАПОРТ ОТ: ${r.callsign}</div>
+                    <div style="font-size:12px; color:#bbb; margin-bottom:4px;">Задание: <span style="color:var(--amb);">${r.contract ? r.contract.title : r.contractId}</span></div>
+                    <div style="font-size:11px; color:var(--text-mut); margin-bottom:10px;">Группировка: ${facName} · ${timeAgo(r.timestamp)}</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-green btn-small" onclick="AdminSystem.processReport('${r.id}', true)">✓ ПРИНЯТЬ (+ REP)</button>
+                        <button class="btn-red btn-small" onclick="AdminSystem.processReport('${r.id}', false)">✗ ОТКЛОНИТЬ</button>
+                    </div>
+                </div>`;
+            }).join('');
+        },
+        renderUsers: () => {
+            const container = document.getElementById('users-list'); if(!container) return;
+            container.innerHTML = State.users.map(u => `<div class="user-row">
+                <img src="${u.avatar}" alt="av">
+                <div style="flex:1;">
+                    <div style="font-weight:bold; color:var(--amb);">${u.callsign} ${u.isAdmin?'[АДМИН]':''}</div>
+                    <div style="font-size:10px; color:var(--text-mut);">Фракция: <span class="color-amb">${u.faction || 'Одиночка'}</span> | Успешно: ${u.done||0}</div>
+                    
+                    <div style="margin-top:5px; display:flex; flex-direction:column; gap:5px;">
+                        <div style="display:flex; gap:5px;">
+                            <input id="av_${u.uid}" placeholder="Новый URL аватара" style="flex:1; padding:4px 8px; font-size:10px;" value="${u.avatar || ''}">
+                            <button class="btn-small" onclick="AdminSystem.updateAvatar('${u.uid}', 'av_${u.uid}')">ОБНОВИТЬ</button>
+                        </div>
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <span style="font-size:10px; color:var(--text-mut);">ИЗМЕНИТЬ ФРАКЦИЮ:</span>
+                            <select id="fac_${u.uid}" onchange="AdminSystem.updateFaction('${u.uid}', this.value)" style="flex:1; padding:4px; font-size:10px;">
+                                <option value="Одиночка" ${(!u.faction || u.faction === 'Одиночка') ? 'selected' : ''}>Одиночка</option>
+                                ${Object.values(ALL_GROUPS).map(gName => `<option value="${gName}" ${u.faction === gName ? 'selected' : ''}>${gName}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>`).join('');
+        },
+        renderSettings: () => {
+            const container = document.getElementById('settings-users-list'); if(!container) return;
+            container.innerHTML = State.users.map(u => {
+                let roleRows = Object.keys(ALL_GROUPS).map(facId => {
+                    let r = u.roles ? u.roles[facId] : 'none';
+                    return `<div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; align-items:center;">
+                        <div style="width:120px; color:var(--text-mut);">${ALL_GROUPS[facId]}</div>
+                        <div style="flex:1;">
+                            <select onchange="AdminSystem.setRole('${u.uid}', '${facId}', this.value)" style="width: 100%; padding:2px;">
+                                <option value="none" ${(!r || r==='none') ? 'selected':''}>НЕТ РОЛИ</option>
+                                <option value="member" ${r==='member' ? 'selected':''}>Участник</option>
+                                <option value="trusted" ${r==='trusted' ? 'selected':''}>Доверенный</option>
+                            </select>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                return `<div class="user-row" style="flex-direction:column; gap:5px;">
+                    <div style="font-weight:bold; color:var(--amb); border-bottom:1px solid var(--amb-dim); padding-bottom:5px; width:100%; display:flex; justify-content:space-between;">
+                        <span>${u.callsign}</span>
+                        ${u.uid !== State.authUser.uid ? `
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-small ${u.isAdmin?'btn-red':'btn-green'}" onclick="AdminSystem.toggleAdmin('${u.uid}', ${!u.isAdmin})">${u.isAdmin?'СНЯТЬ АДМИНА':'ДАТЬ ПРАВА'}</button>
+                                <button class="btn-small btn-red" onclick="AdminSystem.deleteUser('${u.uid}')">УДАЛИТЬ</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div style="width:100%; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">${roleRows}</div>
+                </div>`;
+            }).join('');
+        }
+    };
+
+    AuthSystem.init();
+
+</script>
+</body>
+</html>
